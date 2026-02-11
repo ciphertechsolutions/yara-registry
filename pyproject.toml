@@ -25,8 +25,9 @@ classifiers = [
 ]
 dependencies = [
     "yara-python",
-    "yara-x",
-    "platformdirs"
+    "yara-x>=1.6.0",
+    "platformdirs",
+    "click",
 ]
 requires-python = ">=3.10"
 license = "MIT"
