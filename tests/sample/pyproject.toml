@@ -3,7 +3,7 @@ requires = ["setuptools >= 65.5.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "yara-registry"
+name = "yara-registry-sample"
 authors = [
     {name = "Cipher Tech Solutions", email = "opensource@ciphertechsolutions.com"}
 ]
@@ -24,23 +24,15 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "yara-python",
-    "yara-x>=1.6.0",
-    "platformdirs",
-    "click",
 ]
 requires-python = ">=3.10"
 license = "MIT"
 
-[project.optional-dependencies]
-test = ["pytest", "pytest-mock", "pytest-cov"]
-dev = ["pre-commit", "pylint"]
-
-[project.scripts]
-yara_registry = "yara_registry.cli:main"
-
 [project.urls]
 Homepage = "https://github.com/ciphertechsolutions/yara-registry"
+
+[project.entry-points."yara_registry.rules"]
+rules = "yara_registry_sample"
 
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
@@ -50,16 +42,7 @@ readme = {file = ["README.rst", "CHANGELOG.rst"], content-type = "text/x-rst"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-yara_registry = []
+"*" = ["**.yara"]
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q -v --cov=yara_registry"
-testpaths = [
-    "tests",
-]
-log_cli = true
-required_plugins = [
-    "pytest-mock",
-    "pytest-cov"
-]
+[tool.autoflake]
+check = true

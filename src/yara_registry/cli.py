@@ -1,17 +1,19 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import click
 import platformdirs
 
 import yara_registry
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def main():
     pass
 
+
 @main.command(
-    help="""Add new yara files not contained in a python package"""
+    help="""Add new yara files not contained in a python package. Files are added to the users data directory, so ensure this command is run by the correct user."""
 )
 @click.option(
     "--namespace",
@@ -28,7 +30,7 @@ def main():
         file_okay=True,
         readable=True,
         path_type=Path,
-    ),  
+    ),
     help="Path to directory containing rules, files must end in '.yar' or '.yara'",
 )
 def add(namespace: str, path: Path):
@@ -37,10 +39,8 @@ def add(namespace: str, path: Path):
     rules_namespace_path = data_dir / "rules" / namespace
     shutil.copytree(path, rules_namespace_path, dirs_exist_ok=True)
 
-@main.command(
-    help="""Add new yara files not contained in a python package""",
-    name="list"
-)
+
+@main.command(help="""List registered yara files.""", name="list")
 def _list():
     for source in yara_registry.corpus.items():
         click.echo(source)
