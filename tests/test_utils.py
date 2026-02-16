@@ -14,9 +14,11 @@ def test_match_bytes():
 def test_match_file():
     from yara_registry import corpus
 
-    with tempfile.TemporaryFile() as file:
+    with tempfile.TemporaryDirectory() as dir:
+        path = Path(dir, "test.yara")
+        file = path.open("wb")
         file.write(b"test")
-        file.seek(0)
+        file.close()
         matches = corpus.match(file_path=file.name)
         assert len(matches) == 4
 
