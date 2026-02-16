@@ -16,6 +16,7 @@ def test_match_file():
 
     with tempfile.TemporaryFile() as file:
         file.write(b"test")
+        file.seek(0)
         matches = corpus.match(file_path=file.name)
         assert len(matches) == 4
 

@@ -22,4 +22,4 @@ jobs:
 
       - name: Analysing the code with pylint
         run: |
-          pylint --enable-all-extensions src/ --extension-pkg-allow-list
+          pylint --enable-all-extensions src/ --extension-pkg-allow-list yara,yara_x
