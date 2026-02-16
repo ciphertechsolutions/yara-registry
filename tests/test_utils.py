@@ -35,7 +35,7 @@ def test_match_x_bytes():
     from yara_registry import corpus
 
     matches = corpus.match_x(file_bytes=b"test")
-    assert len(matches.matching_rules) == 4
+    assert len(matches.matching_rules) == 5
 
 
 def test_match_x_file():
@@ -47,7 +47,7 @@ def test_match_x_file():
         file.write(b"test")
         file.close()
         matches = corpus.match_x(file_path=path)
-        assert len(matches.matching_rules) == 4
+        assert len(matches.matching_rules) == 5
 
 
 def test_match_x_none():

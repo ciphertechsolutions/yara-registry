@@ -27,21 +27,33 @@ def test_rule():
     from yara_registry.registry import corpus
 
     for rule in corpus["yara_registry_sample"].rules:
-        assert rule.yara_compatible
-        assert rule.yara_x_compatible
-        assert rule.name in ["test_1.yara", "test_2.yara", "test_3.yara", "test_4.yara"]
+        if rule.name == "test_yara_x.yara":
+            assert not rule.yara_compatible
+            assert rule.yara_x_compatible
+        else:
+            assert rule.yara_compatible
+            assert rule.yara_x_compatible
+        assert rule.name in [
+            "test_1.yara",
+            "test_2.yara",
+            "test_3.yara",
+            "test_4.yara",
+            "test_yara_x.yara",
+        ]
 
 
 def test_rule_invalid():
     from yara_registry.registry import Rule
 
-    name = "test_registry.py"
-    rule = Rule(Path(f"./{name}"))
-    print(rule)
-    assert rule.name == name
+    with tempfile.TemporaryDirectory() as dir, open(Path(dir, "test.yara"), "w") as f:
+        f.write("Not a valid yara rule")
+        f.seek(0)
+        path = Path(f"{f.name}")
+        rule = Rule(path)
+    assert rule.name == path.name
     assert not rule.yara_compatible
     assert not rule.yara_x_compatible
-    assert repr(rule) == f"Rule file at {name}"
+    assert repr(rule) == f"Rule file at {path}"
 
 
 def test_source_from_file():
@@ -57,8 +69,8 @@ def test_source_from_file():
             repr(source)
             == f"Package test: 1 rules from {Path(dir, 'test.yara')}: [test.yara]"
         )
-        assert len(source._yara_compatible_rules) == 1
-        assert len(source._yara_x_compatible_rules) == 1
+        assert len(source.yara_compatible_rules) == 1
+        assert len(source.yara_x_compatible_rules) == 1
         assert source.yara_rules
         assert source.yara_x_rules
 
@@ -66,8 +78,8 @@ def test_source_from_file():
 def test_corpus_rules():
     from yara_registry import corpus
 
-    assert len(corpus._yara_compatible_rules) == 4
-    assert len(corpus._yara_x_compatible_rules) == 4
+    assert len(corpus.yara_compatible_rules) == 4
+    assert len(corpus.yara_x_compatible_rules) == 5
 
 
 def test_functions():
@@ -75,11 +87,11 @@ def test_functions():
 
     assert registry.get_source("yara_registry_sample")
     assert len([rule for rule in registry.get_all_yara_rules_compiled()]) == 4
-    assert len([rule for rule in registry.get_all_yara_x_rules_compiled()]) == 4
+    assert len([rule for rule in registry.get_all_yara_x_rules_compiled()]) == 5
     assert len(registry.get_all_yara_rules()) == 4
-    assert len(registry.get_all_yara_x_rules()) == 4
+    assert len(registry.get_all_yara_x_rules()) == 5
     assert len(registry.get_all_yara_rule_paths()) == 4
-    assert len(registry.get_all_yara_x_rule_paths()) == 4
+    assert len(registry.get_all_yara_x_rule_paths()) == 5
 
 
 def test_refresh(mocker: MockerFixture):
@@ -122,7 +134,7 @@ def test_source_match_x(mocker: MockerFixture):
     registry_spy = mocker.patch("yara_registry.utils.match_x")
     yara_x_spy = mocker.patch("yara_x.Compiler.define_global")
     source = registry.get_source("yara_registry_sample")
-    source.match_x(file_bytes=b"")
+    matches = source.match_x(file_bytes=b"")
     assert registry_spy.call_count == 1
     source.match_x(file_bytes=b"", externals={"key1": "value1", "key2": "value2"})
     assert registry_spy.call_count == 2
