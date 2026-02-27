@@ -19,13 +19,17 @@ def test_corpus(mocker: MockerFixture):
     mocker.patch("platformdirs.user_data_dir")
     import yara_registry
 
-    corpus = yara_registry.corpus
+    corpus = yara_registry.registry.corpus
+    yara_registry.register_rules()
     assert len(corpus) == 1
 
 
 def test_rule():
-    from yara_registry.registry import corpus
+    from yara_registry import corpus, register_rules
 
+    register_rules()
+
+    assert "yara_registry_sample" in corpus
     for rule in corpus["yara_registry_sample"].rules:
         if rule.name == "test_yara_x.yara":
             assert not rule.yara_compatible
@@ -75,15 +79,21 @@ def test_source_from_file():
         assert source.yara_x_rules
 
 
-def test_corpus_rules():
-    from yara_registry import corpus
+def test_corpus_rules(mocker: MockerFixture):
+    from yara_registry import corpus, register_rules
+
+    mocker.patch("platformdirs.user_data_dir")
+    register_rules()
 
     assert len(corpus.yara_compatible_rules) == 4
     assert len(corpus.yara_x_compatible_rules) == 5
 
 
-def test_functions():
+def test_functions(mocker: MockerFixture):
     from yara_registry import registry
+
+    registry.register_rules()
+    mocker.patch("platformdirs.user_data_dir")
 
     assert registry.get_source("yara_registry_sample")
     assert len([rule for rule in registry.get_all_yara_rules_compiled()]) == 4
@@ -97,6 +107,7 @@ def test_functions():
 def test_refresh(mocker: MockerFixture):
     from yara_registry import registry
 
+    registry.register_rules()
     assert registry.corpus
     spy = mocker.spy(metadata, "entry_points")
     registry.register_rules(refresh=False)
@@ -122,6 +133,8 @@ def test_source_conflict(mocker: MockerFixture):
 def test_source_match(mocker: MockerFixture):
     from yara_registry import registry
 
+    registry.register_rules()
+
     spy = mocker.patch("yara_registry.utils.match")
     source = registry.get_source("yara_registry_sample")
     source.match(file_bytes=b"")
@@ -130,6 +143,8 @@ def test_source_match(mocker: MockerFixture):
 
 def test_source_match_x(mocker: MockerFixture):
     from yara_registry import registry
+
+    registry.register_rules()
 
     registry_spy = mocker.patch("yara_registry.utils.match_x")
     yara_x_spy = mocker.patch("yara_x.Compiler.define_global")

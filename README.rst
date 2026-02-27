@@ -1,1 +1,0 @@
-Centralized registration of yara rules for programmatic access to a corpus of rules from various python packages.

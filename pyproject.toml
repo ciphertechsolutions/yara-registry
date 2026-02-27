@@ -24,13 +24,15 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "yara-python",
-    "yara-x>=1.6.0",
     "platformdirs",
     "click",
 ]
 requires-python = ">=3.10"
 license = "MIT"
+
+[project.optional-dependencies]
+yara = ["yara-python"]
+yara-x = ["yara-x>=1.6.0"]
 
 [dependency-groups]
 test = ["pytest", "pytest-mock", "pytest-cov"]

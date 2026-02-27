@@ -54,6 +54,11 @@ def add(namespace: str, path: Path):
 
 
 @main.command(help="""List registered yara files.""", name="list")
-def _list():
-    for source in yara_registry.corpus.items():
-        click.echo(source)
+@click.option("--source", required=False, type=str)
+def _list(source: str = None):
+    yara_registry.register_rules()
+    if source:
+        click.echo(yara_registry.corpus[source])
+        return
+    for item in yara_registry.corpus.items():
+        click.echo(item)

@@ -9,8 +9,20 @@ from importlib import metadata
 from pathlib import Path
 
 import platformdirs
-import yara
-import yara_x
+
+# pylint: disable=duplicate-code
+try:
+    import yara
+except ImportError:
+    YARA_INSTALLED = False
+else:
+    YARA_INSTALLED = True
+try:
+    import yara_x
+except ImportError:
+    YARA_X_INSTALLED = False
+else:
+    YARA_X_INSTALLED = True
 
 from yara_registry import utils
 
@@ -28,12 +40,12 @@ class Rule:
     yara_x_compatible: bool = False
 
     def __post_init__(self):
-        try:
-            yara.compile(str(self.path))
-        except yara.Error as e:
-            logger.warning("Invalid yara rule %s: %s", self.name, e)
-        else:
-            self.yara_compatible = True
+        self._test_yara_compatibility()
+        self._test_yara_x_compatibility()
+
+    def _test_yara_x_compatibility(self):
+        if not YARA_X_INSTALLED:
+            return
         try:  # pylint: disable=too-many-try-statements
             with open(str(self.path), encoding="utf-8") as f:
                 rule_text = f.read()
@@ -41,6 +53,16 @@ class Rule:
                 self.yara_x_compatible = True
         except (yara_x.CompileError, OSError) as e:
             logger.warning("Invalid yara_x rule %s: %s", self.name, e)
+
+    def _test_yara_compatibility(self):
+        if not YARA_INSTALLED:
+            return
+        try:
+            yara.compile(str(self.path))
+        except yara.Error as e:
+            logger.warning("Invalid yara rule %s: %s", self.name, e)
+        else:
+            self.yara_compatible = True
 
     @cached_property
     def name(self) -> str:
@@ -92,7 +114,8 @@ class Source:
         return [rule for rule in self.rules if rule.yara_compatible]
 
     @cached_property
-    def yara_rules(self) -> yara.Rules:
+    @utils.yara_required
+    def yara_rules(self) -> "yara.Rules":
         """Get list of all yara rules from this Source.
         :return: List of all yara rules from this Source
         :rtype: yara.Rules
@@ -111,9 +134,16 @@ class Source:
         return [rule for rule in self.rules if rule.yara_x_compatible]
 
     @cached_property
-    def _yara_x_compiler(self) -> yara_x.Compiler:
+    @utils.yara_x_required
+    def _yara_x_compiler(self) -> "yara_x.Compiler":
+        return self._new_yara_x_compiler()
+
+    def _new_yara_x_compiler(
+        self, compiler: "yara_x.Compiler" = None
+    ) -> "yara_x.Compiler":
         rules = {rule.name: str(rule.path) for rule in self.yara_x_compatible_rules}
-        compiler = yara_x.Compiler()
+        if not compiler:
+            compiler = yara_x.Compiler()
         for namespace, path in rules.items():
             with open(path, encoding="utf-8") as file:
                 content = file.read()
@@ -122,16 +152,18 @@ class Source:
         return compiler
 
     @cached_property
-    def yara_x_rules(self) -> yara_x.Rules:
+    @utils.yara_x_required
+    def yara_x_rules(self) -> "yara_x.Rules":
         """All yara_x rules from this source compiled by yara_x.
         :return: All yara_x rules from this source compiled by yara_x
         :rtype: yara_x.Rules
         """
         return self._yara_x_compiler.build()
 
+    @utils.yara_x_required
     def match_x(
         self, file_path: Path = None, file_bytes: bytes = None, externals: dict = None
-    ) -> yara_x.ScanResults:
+    ) -> "yara_x.ScanResults":
         """Match input against registered yara_x rules from this Source.
         :param file_path: Path of file to match against, must set this or file_bytes
         :type file_path: Path
@@ -143,9 +175,12 @@ class Source:
         :rtype: ScanResults
         """
         if externals:
-            compiler = self._yara_x_compiler
+            # Yara-x requires defining globals before adding sources, so we must recreate each time
+            # https://virustotal.github.io/yara-x/docs/api/python/#define_globalidentifier-value
+            compiler = yara_x.Compiler()
             for key, value in externals.items():
                 compiler.define_global(key, value)
+            compiler = self._new_yara_x_compiler(compiler)
             rules = compiler.build()
         else:
             rules = self.yara_x_rules
@@ -187,7 +222,8 @@ class Corpus(dict[str, Source]):
         return rules
 
     @cached_property
-    def yara_rules(self) -> yara.Rules:
+    @utils.yara_required
+    def yara_rules(self) -> "yara.Rules":
         """All yara rules in corpus compiled by yara.
         :return: All yara rules in corpus compiled by yara
         :rtype: yara.Rules
@@ -210,8 +246,15 @@ class Corpus(dict[str, Source]):
         return rules
 
     @cached_property
-    def _yara_x_compiler(self) -> yara_x.Compiler:
-        compiler = yara_x.Compiler()
+    @utils.yara_x_required
+    def _yara_x_compiler(self) -> "yara_x.Compiler":
+        return self._new_yara_x_compiler()
+
+    def _new_yara_x_compiler(
+        self, compiler: "yara_x.Compiler" = None
+    ) -> "yara_x.Compiler":
+        if not compiler:
+            compiler = yara_x.Compiler()
         for source in self.values():
             for rule in source.yara_x_compatible_rules:
                 key = f"{source.name}.{rule.name}"
@@ -222,16 +265,18 @@ class Corpus(dict[str, Source]):
         return compiler
 
     @cached_property
-    def yara_x_rules(self) -> yara_x.Rules:
+    @utils.yara_x_required
+    def yara_x_rules(self) -> "yara_x.Rules":
         """All yara_x rules in corpus compiled by yara_x.
         :return: All yara_x rules in corpus compiled by yara_x
         :rtype: yara_x.Rules
         """
         return self._yara_x_compiler.build()
 
+    @utils.yara_x_required
     def match_x(
         self, file_path: Path = None, file_bytes: bytes = None, externals: dict = None
-    ) -> yara_x.ScanResults:
+    ) -> "yara_x.ScanResults":
         """Match input against all registered yara_x rules.
         :param file_path: Path of file to match against, must set this or file_bytes
         :type file_path: Path
@@ -243,17 +288,21 @@ class Corpus(dict[str, Source]):
         :rtype: ScanResults
         """
         if externals:
-            compiler = self._yara_x_compiler
+            # Yara-x requires defining globals before adding sources, so we must recreate each time
+            # https://virustotal.github.io/yara-x/docs/api/python/#define_globalidentifier-value
+            compiler = yara_x.Compiler()
             for key, value in externals.items():
                 compiler.define_global(key, value)
+            compiler = self._new_yara_x_compiler(compiler)
             rules = compiler.build()
         else:
             rules = self.yara_x_rules
         return utils.match_x(rules, file_path=file_path, file_bytes=file_bytes)
 
+    @utils.yara_required
     def match(
         self, file_path: Path = None, file_bytes: bytes = None, externals: dict = None
-    ) -> list[yara.Match]:
+    ) -> list["yara.Match"]:
         """Match yara rules against provided input using yara.
         :param file_path: Path of file to match against, must set this or file_bytes
         :type file_path: Path
@@ -272,7 +321,7 @@ class Corpus(dict[str, Source]):
         )
 
 
-def get_source(name: str) -> Source:
+def get_source(name: str) -> Source | None:
     """Get a yara rules source by name.
     :param name: Name of the python package/installed rules namespace
     :type name: str
@@ -285,7 +334,7 @@ def get_source(name: str) -> Source:
     return None
 
 
-def get_all_yara_rules_compiled() -> yara.Rules:
+def get_all_yara_rules_compiled() -> "yara.Rules":
     """Get all yara rules compiled.
     :return: Get all compatible yara rules compiled by yara
     :rtype: yara.Rules
@@ -309,7 +358,7 @@ def get_all_yara_rule_paths() -> list[Path]:
     return [rule.path for rule in corpus.yara_compatible_rules]
 
 
-def get_all_yara_x_rules_compiled() -> yara_x.Rules:
+def get_all_yara_x_rules_compiled() -> "yara_x.Rules":
     """Get all yara_x rules compiled.
     :return: Get all compatible yara_x rules compiled by yara_x
     :rtype: yara_x.Rules
@@ -336,38 +385,8 @@ def get_all_yara_x_rule_paths() -> list[Path]:
 corpus = Corpus()
 
 
-def match(
-    file_path: Path = None, file_bytes: bytes = None, externals=None
-) -> list[yara.Match]:
-    """Match yara rules against provided input using yara.
-    :param file_path: Path of file to match against, must set this or file_bytes
-    :type file_path: Path
-    :param file_bytes: bytes content to match against, must set this or file_path
-    :type file_bytes: bytes
-    :param externals: Dictionary of external values to pass to rules.match()
-    :type externals: dict
-    :return: List of rules that matches on the provided input
-    :rtype: list[yara.Match]
-    """
-    return corpus.match(file_path=file_path, file_bytes=file_bytes, externals=externals)
-
-
-def match_x(
-    file_path: Path = None, file_bytes: bytes = None, externals: dict = None
-) -> yara_x.ScanResults:
-    """Match input against all registered yara_x rules.
-    :param file_path: Path of file to match against, must set this or file_bytes
-    :type file_path: Path
-    :param file_bytes: bytes content to match against, must set this or file_path
-    :type file_bytes: bytes
-    :param externals: External variables to pass to yara_x
-    :type externals: dict
-    :return: Results of scan that matches on the provided input
-    :rtype: ScanResults
-    """
-    return corpus.match_x(
-        file_path=file_path, file_bytes=file_bytes, externals=externals
-    )
+match = corpus.match
+match_x = corpus.match_x
 
 
 def register_rules(refresh: bool = False):
@@ -376,10 +395,9 @@ def register_rules(refresh: bool = False):
     :param refresh: Refresh rules from disk, deletes existing corpus and repopulates with fresh data
     :type refresh: bool
     """
-    global corpus  # pylint: disable=global-statement
     if corpus and not refresh:
         return
-    corpus = Corpus()
+    corpus.clear()
     for entry in metadata.entry_points(group="yara_registry.rules"):
         try:
             package = entry.load()
@@ -412,6 +430,3 @@ def register_rules(refresh: bool = False):
                 namespace.name,
             )
         corpus[namespace.name] = Source(namespace.name, namespace)
-
-
-register_rules()

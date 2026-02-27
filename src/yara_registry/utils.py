@@ -1,14 +1,52 @@
 """ Utilities used by yara_registry
 """
+from collections.abc import Callable
 from pathlib import Path
 
-import yara
-import yara_x
+from yara_registry.exceptions import YaraNotInstalled, YaraXNotInstalled
+
+try:
+    import yara
+except ImportError:
+    YARA_INSTALLED = False
+else:
+    YARA_INSTALLED = True
+try:
+    import yara_x
+except ImportError:
+    YARA_X_INSTALLED = False
+else:
+    YARA_X_INSTALLED = True
 
 
+def yara_required(func: Callable):
+    """Decorator for functions that require yara-python be installed to be used"""
+
+    def wrapper(*args, **kwargs):
+        if not YARA_INSTALLED:
+            raise YaraNotInstalled(f"Cannot use {func.__name__} without yara installed")
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def yara_x_required(func: Callable):
+    """Decorator for functions that require yara-x be installed to be used"""
+
+    def wrapper(*args, **kwargs):
+        if not YARA_X_INSTALLED:
+            raise YaraXNotInstalled(
+                f"Cannot use {func.__name__} without yara_x installed"
+            )
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+@yara_x_required
 def match_x(
-    rules: yara_x.Rules, file_path: Path = None, file_bytes: bytes = None
-) -> yara_x.ScanResults:
+    rules: "yara_x.Rules", file_path: Path = None, file_bytes: bytes = None
+) -> "yara_x.ScanResults":
     """Match yara rules against provided input using yara_x
     :param rules: Rules to match against
     :type rules: yara_x.Rules
@@ -27,12 +65,13 @@ def match_x(
     return rules.scan(file_bytes)
 
 
+@yara_required
 def match(
-    rules: yara.Rules,
+    rules: "yara.Rules",
     file_path: Path = None,
     file_bytes: bytes = None,
     externals: dict = None,
-) -> list[yara.Match]:
+) -> list["yara.Match"]:
     """Match yara rules against provided input using yara
     :param rules: Rules to match against
     :type rules: yara.Rules
