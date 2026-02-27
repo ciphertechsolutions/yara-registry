@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 import platformdirs
 
-import yara_registry
+from yara_registry.registry import Corpus
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -56,9 +56,10 @@ def add(namespace: str, path: Path):
 @main.command(help="""List registered yara files.""", name="list")
 @click.option("--source", required=False, type=str)
 def _list(source: str = None):
-    yara_registry.register_rules()
+    corpus = Corpus()
     if source:
-        click.echo(yara_registry.corpus[source])
-        return
-    for item in yara_registry.corpus.items():
+        click.echo(corpus[source])
+        return 0
+    for item in corpus.items():
         click.echo(item)
+    return 0

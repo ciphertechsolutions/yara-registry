@@ -17,17 +17,16 @@ def test_sample_install():
 def test_corpus(mocker: MockerFixture):
     # Prevent any locally installed rules from being found
     mocker.patch("platformdirs.user_data_dir")
-    import yara_registry
+    from yara_registry.registry import Corpus
 
-    corpus = yara_registry.registry.corpus
-    yara_registry.register_rules()
+    corpus = Corpus()
     assert len(corpus) == 1
 
 
 def test_rule():
-    from yara_registry import corpus, register_rules
+    from yara_registry.registry import Corpus
 
-    register_rules()
+    corpus = Corpus()
 
     assert "yara_registry_sample" in corpus
     for rule in corpus["yara_registry_sample"].rules:
@@ -61,63 +60,74 @@ def test_rule_invalid():
 
 
 def test_source_from_file():
-    from yara_registry.registry import Source
+    from yara_registry.yara import YaraSource
+    from yara_registry.yara_x import YaraXSource
 
     with tempfile.TemporaryDirectory() as dir, open(Path(dir, "test.yara"), "w") as f:
         f.write("rule test_str \n{\n\tcondition:\n\ttrue}")
-        source = Source("test", Path(dir, "test.yara"))
-        assert source
-        assert len(source.rules) == 1
-        assert str(source) == f"Package test: 1 rules from {Path(dir, 'test.yara')}"
+        yara_source = YaraSource("test", Path(dir, "test.yara"))
+        yara_x_source = YaraXSource("test", Path(dir, "test.yara"))
+        assert yara_source
+        assert yara_x_source
+        assert len(yara_source.rules) == 1
+        assert len(yara_x_source.rules) == 1
         assert (
-            repr(source)
+            str(yara_source) == f"Package test: 1 rules from {Path(dir, 'test.yara')}"
+        )
+        assert (
+            str(yara_x_source) == f"Package test: 1 rules from {Path(dir, 'test.yara')}"
+        )
+        assert (
+            repr(yara_source)
             == f"Package test: 1 rules from {Path(dir, 'test.yara')}: [test.yara]"
         )
-        assert len(source.yara_compatible_rules) == 1
-        assert len(source.yara_x_compatible_rules) == 1
-        assert source.yara_rules
-        assert source.yara_x_rules
+        assert (
+            repr(yara_x_source)
+            == f"Package test: 1 rules from {Path(dir, 'test.yara')}: [test.yara]"
+        )
+        assert len(yara_source.compatible_rules) == 1
+        assert len(yara_x_source.compatible_rules) == 1
+        assert yara_source.rules
+        assert yara_x_source.rules
 
 
 def test_corpus_rules(mocker: MockerFixture):
-    from yara_registry import corpus, register_rules
+    from yara_registry.yara import YaraCorpus
+    from yara_registry.yara_x import YaraXCorpus
 
     mocker.patch("platformdirs.user_data_dir")
-    register_rules()
+    yara_corpus = YaraCorpus()
+    yara_x_corpus = YaraXCorpus()
 
-    assert len(corpus.yara_compatible_rules) == 4
-    assert len(corpus.yara_x_compatible_rules) == 5
+    assert len(yara_corpus.compatible_rules) == 4
+    assert len(yara_x_corpus.compatible_rules) == 5
 
 
 def test_functions(mocker: MockerFixture):
-    from yara_registry import registry
+    from yara_registry.yara import YaraCorpus
 
-    registry.register_rules()
     mocker.patch("platformdirs.user_data_dir")
+    corpus = YaraCorpus()
 
-    assert registry.get_source("yara_registry_sample")
-    assert len([rule for rule in registry.get_all_yara_rules_compiled()]) == 4
-    assert len([rule for rule in registry.get_all_yara_x_rules_compiled()]) == 5
-    assert len(registry.get_all_yara_rules()) == 4
-    assert len(registry.get_all_yara_x_rules()) == 5
-    assert len(registry.get_all_yara_rule_paths()) == 4
-    assert len(registry.get_all_yara_x_rule_paths()) == 5
+    assert corpus.get_source("yara_registry_sample")
+    assert len([rule for rule in corpus.get_all_rules_compiled()]) == 4
+    assert len(corpus.get_all_rule_paths()) == 4
 
 
 def test_refresh(mocker: MockerFixture):
-    from yara_registry import registry
+    from yara_registry.registry import Corpus
 
-    registry.register_rules()
-    assert registry.corpus
+    corpus = Corpus()
+    assert corpus
     spy = mocker.spy(metadata, "entry_points")
-    registry.register_rules(refresh=False)
+    corpus.register_rules()
     assert spy.call_count == 0
-    registry.register_rules(refresh=True)
+    corpus.refresh()
     assert spy.call_count == 1
 
 
 def test_source_conflict(mocker: MockerFixture):
-    from yara_registry.registry import Source
+    from yara_registry.yara_x import YaraXSource
 
     with tempfile.TemporaryDirectory() as dir, open(
         Path(dir, "test1.yara"), "w"
@@ -125,39 +135,41 @@ def test_source_conflict(mocker: MockerFixture):
         f1.write("rule test_str \n{\n\tcondition:\n\ttrue}")
         f2.write("rule test_str \n{\n\tcondition:\n\ttrue}")
         spy = mocker.patch("yara_x.Compiler.add_source")
-        source = Source(dir, Path(dir))
+        source = YaraXSource(dir, Path(dir))
         source._yara_x_compiler
         assert spy.call_count == 2
 
 
 def test_source_match(mocker: MockerFixture):
-    from yara_registry import registry
+    from yara_registry.yara import YaraCorpus
 
-    registry.register_rules()
+    corpus = YaraCorpus()
 
     spy = mocker.patch("yara_registry.utils.match")
-    source = registry.get_source("yara_registry_sample")
+    source = corpus.get_source("yara_registry_sample")
     source.match(file_bytes=b"")
     assert spy.call_count == 1
 
 
 def test_source_match_x(mocker: MockerFixture):
-    from yara_registry import registry
+    from yara_registry.yara_x import YaraXCorpus
 
-    registry.register_rules()
+    corpus = YaraXCorpus()
 
     registry_spy = mocker.patch("yara_registry.utils.match_x")
     yara_x_spy = mocker.patch("yara_x.Compiler.define_global")
-    source = registry.get_source("yara_registry_sample")
-    matches = source.match_x(file_bytes=b"")
+    source = corpus.get_source("yara_registry_sample")
+    matches = source.match(file_bytes=b"")
     assert registry_spy.call_count == 1
-    source.match_x(file_bytes=b"", externals={"key1": "value1", "key2": "value2"})
+    source.match(file_bytes=b"", externals={"key1": "value1", "key2": "value2"})
     assert registry_spy.call_count == 2
     assert yara_x_spy.call_count == 2
 
 
 def test_corpus_match(mocker: MockerFixture):
-    from yara_registry import corpus
+    from yara_registry.yara import YaraCorpus
+
+    corpus = YaraCorpus()
 
     spy = mocker.patch("yara_registry.utils.match")
     corpus.match(file_bytes=b"")
@@ -165,28 +177,14 @@ def test_corpus_match(mocker: MockerFixture):
 
 
 def test_corpus_match_x(mocker: MockerFixture):
-    from yara_registry import corpus
+    from yara_registry.yara_x import YaraXCorpus
+
+    corpus = YaraXCorpus()
 
     registry_spy = mocker.patch("yara_registry.utils.match_x")
     yara_x_spy = mocker.patch("yara_x.Compiler.define_global")
-    corpus.match_x(file_bytes=b"")
+    corpus.match(file_bytes=b"")
     assert registry_spy.call_count == 1
-    corpus.match_x(file_bytes=b"", externals={"key1": "value1", "key2": "value2"})
+    corpus.match(file_bytes=b"", externals={"key1": "value1", "key2": "value2"})
     assert registry_spy.call_count == 2
     assert yara_x_spy.call_count == 2
-
-
-def test_match(mocker: MockerFixture):
-    from yara_registry import match
-
-    spy = mocker.patch("yara_registry.utils.match")
-    match(file_bytes=b"")
-    assert spy.call_count == 1
-
-
-def test_match_x(mocker: MockerFixture):
-    from yara_registry import match_x
-
-    spy = mocker.patch("yara_registry.utils.match_x")
-    match_x(file_bytes=b"")
-    assert spy.call_count == 1

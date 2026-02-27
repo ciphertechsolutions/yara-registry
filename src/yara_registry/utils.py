@@ -45,7 +45,7 @@ def yara_x_required(func: Callable):
 
 @yara_x_required
 def match_x(
-    rules: "yara_x.Rules", file_path: Path = None, file_bytes: bytes = None
+    rules: "yara_x.Rules", file_path: Path = None, file_bytes: bytes = None, **kwargs
 ) -> "yara_x.ScanResults":
     """Match yara rules against provided input using yara_x
     :param rules: Rules to match against
@@ -54,6 +54,7 @@ def match_x(
     :type file_path: Path
     :param file_bytes: bytes content to match against, must set this or file_path
     :type file_bytes: bytes
+    :param kwargs: Additional keyword arguments to pass to matching function
     :return: Results of scan that matches on the provided input
     :rtype: ScanResults
     """
@@ -62,7 +63,7 @@ def match_x(
     if file_path:
         with open(file_path, "rb") as sample:
             file_bytes = sample.read()
-    return rules.scan(file_bytes)
+    return rules.scan(file_bytes, **kwargs)
 
 
 @yara_required
@@ -71,6 +72,7 @@ def match(
     file_path: Path = None,
     file_bytes: bytes = None,
     externals: dict = None,
+    **kwargs,
 ) -> list["yara.Match"]:
     """Match yara rules against provided input using yara
     :param rules: Rules to match against
@@ -81,6 +83,7 @@ def match(
     :type file_bytes: bytes
     :param externals: Dictionary of external values to pass to rules.match()
     :type externals: dict
+    :param kwargs: Additional keyword arguments to pass to matching function
     :return: List of rules that matches on the provided input
     :rtype: list[yara.Match]
     """
@@ -89,5 +92,5 @@ def match(
     if not file_path and not file_bytes:
         raise ValueError("Must supply either file_path or file_bytes")
     if file_path:
-        return rules.match(str(file_path), externals=externals)
-    return rules.match(data=file_bytes, externals=externals)
+        return rules.match(str(file_path), externals=externals, **kwargs)
+    return rules.match(data=file_bytes, externals=externals, **kwargs)

@@ -16,7 +16,6 @@ Centralized registration of yara rules for programmatic access to a corpus of ru
 	When registering rules with the CLI the namespace should be unique with both python package names and CLI rules.  For example if have a python package with rules named "my_yara_rules" do not add rules with the CLI using "--namespace my_yara_rules".
 3. Verify rule installation using `yara_registry list` or `yara_registry list --source <namespace/package name>`
 4. Access rules programmatically
-	* During program startup or before use call `yara_registry.register_rules()`
-	* Access all rules directly through `yara_registry.corpus`
-	* Access specific sources through `yara_registry.get_source(<source_name>)`
-	* Match against rules using `yara_registry.match` or `yara_registry.match_x`
+	* Access all rules directly through `yara_registry.yara.YaraCorpus` or `yara_registry.yara_x.YaraXCorpus`
+	* Access specific sources through `Corpus.get_source(<source_name>)`
+	* Match against rules using `Corpus.match`
