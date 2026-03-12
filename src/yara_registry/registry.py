@@ -212,7 +212,7 @@ class Corpus(dict[str, Source]):
             return
         self.clear()
         for entry in metadata.entry_points(group="yara_registry.rules"):
-            logger.debug(f"Processing {entry}")
+            logger.debug("Processing %s", entry)
             try:
                 package = entry.load()
             except ModuleNotFoundError:
