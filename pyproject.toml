@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools >= 65.5.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yara-registry"
+authors = [
+    {name = "Cipher Tech Solutions", email = "opensource@ciphertechsolutions.com"}
+]
+maintainers = [
+    {name = "Cipher Tech Solutions", email = "opensource@ciphertechsolutions.com"}
+]
+dynamic = ["version", "readme"]
+description = "Centralized registration of yara rules for programmatic access to a corpus of rules from various python packages. "
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "platformdirs",
+    "click",
+]
+requires-python = ">=3.10"
+license = "MIT"
+
+[project.optional-dependencies]
+yara = ["yara-python"]
+yara-x = ["yara-x>=1.6.0"]
+
+[dependency-groups]
+test = ["pytest", "pytest-mock", "pytest-cov"]
+dev = ["pre-commit", "pylint", {include-group = "test"}]
+
+[project.scripts]
+yara_registry = "yara_registry.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ciphertechsolutions/yara-registry"
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+readme = {file = ["README.rst", "CHANGELOG.rst"], content-type = "text/x-rst"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+yara_registry = []
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q -v --cov=yara_registry"
+testpaths = [
+    "tests",
+]
+log_cli = true
+required_plugins = [
+    "pytest-mock",
+    "pytest-cov"
+]

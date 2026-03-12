@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools >= 65.5.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yara-registry-sample"
+authors = [
+    {name = "Cipher Tech Solutions", email = "opensource@ciphertechsolutions.com"}
+]
+maintainers = [
+    {name = "Cipher Tech Solutions", email = "opensource@ciphertechsolutions.com"}
+]
+dynamic = ["version", "readme"]
+description = "Centralized registration of yara rules for programmatic access to a corpus of rules from various python packages. "
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+]
+requires-python = ">=3.10"
+license = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/ciphertechsolutions/yara-registry"
+
+[project.entry-points."yara_registry.rules"]
+rules = "yara_registry_sample"
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+readme = {file = ["README.rst", "CHANGELOG.rst"], content-type = "text/x-rst"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["**.yara"]
+
+[tool.autoflake]
+check = true
